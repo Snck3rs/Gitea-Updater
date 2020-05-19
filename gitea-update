@@ -1,0 +1,62 @@
+#!/bin/bash
+#
+# Script führt ein automatisches Update von Gitea durch
+# Autor: Thomas Schneider <schneider.thomas@tosit.de>
+#
+# Aufruf: gitea-update <version-number X.X>
+#
+
+# ### Aufrufparameter des Scripts ist der gewünschte Haupt-Versions-Strang x.x
+if [ -n "$1" ] ; then
+        VERSION="$1"
+else
+        echo "Error: Usage $0 <version-number>"
+        exit
+fi
+
+# ### Setzen der Standardkonfiguration
+# Pfad zur Gitea Binary
+BIN_PATH=/usr/local/bin
+
+# Dateinamen
+FILENAME_BINARY=gitea
+SUFFIX_BACKUP=backup
+BINARY=$BIN_PATH/$FILENAME_BINARY
+BINARY_TMP=/tmp/$FILENAME_BINARY
+
+
+# ### Download der aktuellen Version des Haupt-Stranges
+echo "Try to Download Version ${VERSION}.x"
+if (wget -O $BINARY_TMP https://dl.gitea.io/gitea/$VERSION/gitea-$VERSION-linux-arm-6); then
+
+  echo "Checking if file is newer..."
+  if [[ $BINARY_TMP -nt $BINARY ]]; then
+
+    # ### Gitea-Dienst beenden
+    echo "Stopping Gitea..."
+    systemctl stop gitea
+
+    echo "Backup the actual binary..."
+    rm $BINARY.$SUFFIX_BACKUP
+    mv $BINARY $BINARY.$SUFFIX_BACKUP
+
+    echo "Install new version..."
+    mv $BINARY_TMP $BINARY
+    chmod +x $BINARY
+
+    # ### Gitea-Dienst starten
+    echo "Starting Gitea..."
+    systemctl start gitea
+
+  else
+    echo "nothing new... exiting"
+  fi
+
+else
+  echo "Download failed. Please check version number"
+fi
+
+# ### Bereinigen
+if [[ -f "$BINARY_TMP" ]]; then
+  rm $BINARY_TMP
+fi
